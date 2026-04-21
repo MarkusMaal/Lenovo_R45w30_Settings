@@ -18,6 +18,17 @@ public class MenuEntry
     
     public int TriggerValue { get; set; }
     
+    public string[]? SourceLabels { get; set; }
+
+    public string? VerboseValue { get; set; }
+    
+    /// <summary>
+    /// Constructor for toggles/actions
+    /// </summary>
+    /// <param name="label">User-friendly name for the setting</param>
+    /// <param name="vcp">VCP in format xNN where NN is a hexadecimal value from 00-FF</param>
+    /// <param name="checkable">Enables toggle mode. In this mode the user can check/uncheck a setting (unchecked = 0, checked = toggleValue)</param>
+    /// <param name="toggleValue">The value to write. In toggle mode, this gets written when the setting is checked.</param>
     public MenuEntry(string label, string vcp, bool checkable, int toggleValue)
     {
         Type = checkable ? MenuType.Toggle : MenuType.Action;
@@ -27,6 +38,12 @@ public class MenuEntry
         GetCurrentValue();
     }
 
+    /// <summary>
+    /// Constructor for preset list
+    /// </summary>
+    /// <param name="label">User-friendly name for the setting</param>
+    /// <param name="vcp">VCP in format xNN where NN is a hexadecimal value from 00-FF</param>
+    /// <param name="presets">List of setting values, where key is a label for the user and value is the actual value to write to VCP</param>
     public MenuEntry(string label, string vcp, Dictionary<string, int> presets)
     {
         Type = MenuType.PresetList;
@@ -36,6 +53,12 @@ public class MenuEntry
         GetCurrentValue();
     }
 
+    /// <summary>
+    /// Constructor for coordinate (currently unused)
+    /// </summary>
+    /// <param name="label">User-friendly name for the setting</param>
+    /// <param name="vcp">VCP in format xNN where NN is a hexadecimal value from 00-FF</param>
+    /// <param name="ranges">Two range values corresponding to the bounds of a 2D coordinate</param>
     public MenuEntry(string label, string vcp, Range[] ranges)
     {
         Type = MenuType.Coordinate;
@@ -46,6 +69,12 @@ public class MenuEntry
         GetCurrentValue();
     }
 
+    /// <summary>
+    /// Constructor for a range
+    /// </summary>
+    /// <param name="label">User-friendly name for the setting</param>
+    /// <param name="vcp">VCP in format xNN where NN is a hexadecimal value from 00-FF</param>
+    /// <param name="range">Minimum and maximum value for the setting</param>
     public MenuEntry(string label, string vcp, Range range)
     {
         Type = MenuType.Range;
@@ -55,6 +84,38 @@ public class MenuEntry
         GetCurrentValue();
     }
 
+    /// <summary>
+    /// Constructor for testing
+    /// </summary>
+    /// <param name="label">User-friendly name for the setting</param>
+    /// <param name="vcp">VCP in format xNN where NN is a hexadecimal value from 00-FF</param>
+    public MenuEntry(string label, int vcp)
+    {
+        Type = MenuType.Range;
+        Vcp = "x" + vcp.ToString("X");
+        Label = label;
+        GetCurrentValue();
+    }
+
+    /// <summary>
+    /// Constructor for multi-source
+    /// </summary>
+    /// <param name="label">User-friendly name for the setting</param>
+    /// <param name="vcp">VCP in format xNN where NN is a hexadecimal value from 00-FF</param>
+    /// <param name="presets">List of setting values, where key is a label for the user and value is the actual value to write to VCP</param>
+    /// <param name="sourceLabels">Labels for the two settings that will be written</param>
+    public MenuEntry(string label, string vcp, Dictionary<string, int> presets, string[] sourceLabels)
+    {
+        Type = MenuType.MultiSource;
+        Vcp = vcp;
+        Label = label;
+        PresetList =  presets;
+        SourceLabels = sourceLabels;
+    }
+
+    /// <summary>
+    /// Read current setting value
+    /// </summary>
     private void GetCurrentValue()
     {
         if (Type == MenuType.Action) return;
@@ -68,7 +129,6 @@ public class MenuEntry
                 Arguments = "-t getvcp " + Vcp,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true,
             }
         };
         p.Start();
@@ -77,16 +137,29 @@ public class MenuEntry
         {
             output += p.StandardOutput.ReadLine();
         }
-        var values =  output.Split(' ');
 
+        if (output.Contains("not readable"))
+        {
+            Value = -1;
+            return;
+        }
+
+        VerboseValue = output;
+        var values =  output.Split(' ');
         Value = values[2] switch
         {
             "C" => (int)Convert.ToUInt32(values[3]),
-            "CNC" or "SNC" => (int)Convert.ToUInt32(output.Split('x')[^1], 16),
+            "SNC" => (int)Convert.ToUInt32(values[values.IndexOf("SNC")+1][1..], 16),
+            "CNC" => (int)Convert.ToUInt32((values[^2] + values[^1]).Replace("x", ""), 16),
+            "ERR" => -1,
             _ => Value
         };
     }
 
+    /// <summary>
+    /// Write a new value
+    /// </summary>
+    /// <param name="newValue">The value to write to VCP</param>
     public void WriteValue(int newValue)
     {
         var p = new Process()
@@ -109,7 +182,11 @@ public class MenuEntry
         return PresetList ?? [];
     }
 
-    public string GetString(bool highlight)
+    /// <summary>
+    /// Gets the menu entry as a string
+    /// </summary>
+    /// <returns>Menu entry to be displayed to the user</returns>
+    public string GetString()
     {
         switch (Type)
         {
@@ -141,20 +218,43 @@ public class MenuEntry
                 return Label + ": [" + bar + "] " + Math.Round(rangeRatio * 100.0) + "%";
             case MenuType.Action:
             case MenuType.Coordinate:
+            case MenuType.MultiSource:
                 return Label;
             case MenuType.Toggle:
-                return "[" + (TriggerValue == Value ? "X" : " ") + "] " + Label;
+                return "[" + (Value > 0 ? "X" : " ") + "] " + Label;
             default:
                 return this.ToString() ?? "";
         }
     }
 
+    /// <summary>
+    /// Determines how the setting should be displayed to the user
+    /// </summary>
     public enum MenuType
     {
+        /// <summary>
+        /// List of preset values
+        /// </summary>
         PresetList,
+        /// <summary>
+        /// A setting that can be turned on/off
+        /// </summary>
         Toggle,
+        /// <summary>
+        /// A setting that has a range of values we can set
+        /// </summary>
         Range,
+        /// <summary>
+        /// A setting that has two ranges of values we can set
+        /// </summary>
         Coordinate,
-        Action
+        /// <summary>
+        /// A button that performs a specific action
+        /// </summary>
+        Action,
+        /// <summary>
+        /// A setting that has multiple lists of preset values, which are combined into one value byte-by-byte
+        /// </summary>
+        MultiSource
     }
 }

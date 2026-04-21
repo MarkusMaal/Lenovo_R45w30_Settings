@@ -1,16 +1,10 @@
-﻿// See https://aka.ms/new-console-template for more information
-
-using System.IO.Compression;
-using System.Reflection.Emit;
-using System.Text;
-
-namespace Lenovo_R45w30_Settings;
+﻿namespace Lenovo_R45w30_Settings;
 
 public abstract class Program
 {
     public static readonly string DdcExe = "ddcutil";
 
-    public static bool NoColor = false;
+    public static bool NoColor;
     
     public static void Main(string[] args)
     {
@@ -21,12 +15,12 @@ public abstract class Program
         while (true)
         {
             Console.SetCursorPosition(0, 3);
-            RenderMenu(selTab);
+            RenderTabs(selTab);
             Utils.DisplayHint("\u2190/\u2192 - Switch category   \u2191/\u2193 - Change selection   \u21B2 - Edit value   ESC - Exit");
             Console.SetCursorPosition(0, 4);
             foreach (var (idx, mi) in Constants.MenuEntries[selTab].Index())
             {
-                Utils.DecodeColors((idx == selEntry ? "~-- > ~-B" : "~--  ") + mi.GetString(selEntry == idx) + "~--" + (idx == selEntry ? "  " : "   "));
+                Utils.DecodeColors((idx == selEntry ? "~-- > ~-B" : "~--  ") + mi.GetString() + "~--" + (idx == selEntry ? "  " : "   "));
                 Console.WriteLine();
             }
             switch (Console.ReadKey().Key)
@@ -47,6 +41,12 @@ public abstract class Program
                     selEntry = 0;
                     Utils.ClearScreen();
                     break;
+                case ConsoleKey.L:
+                    Utils.ClearScreen(true);
+                    Utils.Learn();
+                    Utils.ClearScreen();
+                    break;
+                case ConsoleKey.Q:
                 case ConsoleKey.Escape:
                     Utils.ClearScreen(true);
                     return;
@@ -71,6 +71,17 @@ public abstract class Program
                         case MenuEntry.MenuType.Action:
                             selMenuEntry.WriteValue(selMenuEntry.TriggerValue);
                             break;
+                        case MenuEntry.MenuType.Toggle:
+                            selMenuEntry.WriteValue(selMenuEntry.Value == selMenuEntry.TriggerValue ? 0 : selMenuEntry.TriggerValue);
+                            break;
+                        case MenuEntry.MenuType.MultiSource:
+                            var newSrcVal = Submenus.MultiSourceSelectUi(selMenuEntry.GetPresets(),
+                                selMenuEntry.SourceLabels ?? []);
+                            if (newSrcVal != -1)
+                            {
+                                selMenuEntry.WriteValue(newSrcVal);
+                            }
+                            break;
                     }
                     Utils.ClearScreen();
                     break;
@@ -82,7 +93,11 @@ public abstract class Program
         }
     }
 
-    private static void RenderMenu(int selectedTab)
+    /// <summary>
+    /// Displays the top tabs to the user
+    /// </summary>
+    /// <param name="selectedTab">The tab that should be highlighted</param>
+    private static void RenderTabs(int selectedTab)
     {
         Console.SetCursorPosition(0, 1);
         Console.WriteLine();
@@ -94,7 +109,7 @@ public abstract class Program
             {
                 eTab = "< " + tab + " >";
             }
-            while (eTab.Length < 15)
+            while (eTab.Length < 13)
             {
                 eTab = " " + eTab + " ";
             }

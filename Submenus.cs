@@ -5,6 +5,13 @@ namespace Lenovo_R45w30_Settings;
 public abstract class Submenus
 {
     
+    /// <summary>
+    /// Show a menu for selecting a range (e.g. brightness control)
+    /// </summary>
+    /// <param name="label">Text to display next to the slider</param>
+    /// <param name="valueRange">Min/max values the user can choose from</param>
+    /// <param name="currentValue">Current value from VCP</param>
+    /// <returns>New value to write to VCP</returns>
     public static int RangeSelectUi(string label, Range valueRange, int currentValue)
     {
         var selValue = currentValue;
@@ -47,6 +54,13 @@ public abstract class Submenus
         }
     }
 
+    /// <summary>
+    /// Displays a menu where the user can select from a list of options
+    /// </summary>
+    /// <param name="presets">The list of menu items and values assigned to them</param>
+    /// <param name="currentValue">Current value from VCP</param>
+    /// <param name="settingName">Text to display at the top</param>
+    /// <returns>New value to write to VCP</returns>
     public static int ChoosePresetUi(Dictionary<string, int> presets, int currentValue, string settingName)
     {
         var selPreset = presets.TakeWhile(preset => preset.Value != currentValue).Count();
@@ -81,6 +95,58 @@ public abstract class Submenus
             if (selPreset < 0) selPreset = presets.Count - 1;
             else if (selPreset >= presets.Count) selPreset = 0;
         }
+    }
+
+    /// <summary>
+    /// Displays a menu that has two screens to choose values from
+    /// </summary>
+    /// <param name="presets">Menu items and values assigned to them</param>
+    /// <param name="sourceLabels">Text to display for each screen</param>
+    /// <returns>Chosen values combined as short, to be written to VCP</returns>
+    public static int MultiSourceSelectUi(Dictionary<string, int> presets, string[] sourceLabels)
+    {
+        var results = new List<int>();
+        foreach (var sl in sourceLabels)
+        {
+            Utils.ClearScreen();
+            Utils.DisplayHint("\u2191/\u2193 - Choose setting   \u21B2 - Save changes   ESC - Discard changes");
+            Console.SetCursorPosition(0, 4);
+            Console.WriteLine(sl);
+            var selPreset = 0;
+            while (true)
+            {
+                var i = 0;
+                Console.SetCursorPosition(0, 6);
+                foreach (var preset in presets)
+                {
+                    Utils.DecodeColors("~--" + (selPreset == i ? " > ~-B" : "  ") + preset.Key + "~--  ");
+                    Console.WriteLine();
+                    i++;
+                }
+
+                var breakLoop = false;
+                switch (Console.ReadKey().Key)
+                {
+                    case ConsoleKey.DownArrow:
+                        selPreset++;
+                        break;
+                    case ConsoleKey.UpArrow:
+                        selPreset--;
+                        break;
+                    case ConsoleKey.Enter:
+                        results.Add(presets.Values.ToArray()[selPreset]);
+                        breakLoop = true;
+                        break;
+                    case ConsoleKey.Escape:
+                        return -1;
+                }
+
+                if (breakLoop) break;
+                if (selPreset < 0) selPreset = presets.Count - 1;
+                else if (selPreset >= presets.Count) selPreset = 0;
+            }
+        }
+        return Convert.ToInt32(results[1].ToString("X").PadLeft(2, '0') + results[0].ToString("X").PadLeft(2, '0'), 16);
     }
 
 }
