@@ -2,23 +2,28 @@
 
 public abstract class Program
 {
-    public static readonly string DdcExe = "ddcutil";
+    public const string DdcExe = "ddcutil";
 
     public static bool NoColor;
     
     public static void Main(string[] args)
     {
         if (args.Contains("--no-color")) NoColor = true;
+        Utils.ClearScreen(true);
         Utils.DisplayHint("Please wait...");
         var selTab = 0;
         var selEntry = 0;
+        foreach (var _ in Constants.MenuEntries)
+        {
+            // dummy access to force menu entries to initialize before rendering the tabs
+        }
         while (true)
         {
             Console.SetCursorPosition(0, 3);
             RenderTabs(selTab);
             Utils.DisplayHint("\u2190/\u2192 - Switch category   \u2191/\u2193 - Change selection   \u21B2 - Edit value   ESC - Exit");
             Console.SetCursorPosition(0, 4);
-            foreach (var (idx, mi) in Constants.MenuEntries[selTab].Index())
+            foreach (var (idx, mi) in Constants.MenuEntries.Values.ToArray()[selTab].Index())
             {
                 Utils.DecodeColors((idx == selEntry ? "~-- > ~-B" : "~--  ") + mi.GetString() + "~--" + (idx == selEntry ? "  " : "   "));
                 Console.WriteLine();
@@ -52,7 +57,7 @@ public abstract class Program
                     return;
                 case ConsoleKey.Enter:
                     Utils.ClearScreen();
-                    var selMenuEntry = Constants.MenuEntries[selTab][selEntry];
+                    var selMenuEntry = Constants.MenuEntries.Values.ToArray()[selTab][selEntry];
                     switch (selMenuEntry.Type)
                     {
                         case MenuEntry.MenuType.PresetList:
@@ -86,10 +91,10 @@ public abstract class Program
                     Utils.ClearScreen();
                     break;
             }
-            if (selTab < 0) selTab = Constants.Tabs.Length - 1;
-            else if (selTab >= Constants.Tabs.Length) selTab = 0;
-            if (selEntry < 0) selEntry = Constants.MenuEntries[selTab].Length - 1;
-            else if (selEntry >= Constants.MenuEntries[selTab].Length) selEntry = 0;
+            if (selTab < 0) selTab = Constants.MenuEntries.Count - 1;
+            else if (selTab >= Constants.MenuEntries.Count) selTab = 0;
+            if (selEntry < 0) selEntry = Constants.MenuEntries.Values.ToArray()[selTab].Length - 1;
+            else if (selEntry >= Constants.MenuEntries.Values.ToArray()[selTab].Length) selEntry = 0;
         }
     }
 
@@ -101,20 +106,18 @@ public abstract class Program
     {
         Console.SetCursorPosition(0, 1);
         Console.WriteLine();
-        Utils.DecodeColors((selectedTab == 0 ? "~BB" : "~88") + " " + (selectedTab == 0 ? "~BB" : "") + "  ");
-        foreach (var (index, tab) in Constants.Tabs.Index())
+        foreach (var (index, tab) in Constants.MenuEntries.Keys.Index())
         {
             var eTab = tab;
             if (selectedTab == index)
             {
                 eTab = "< " + tab + " >";
             }
-            while (eTab.Length < 13)
+            while (eTab.Length < 12)
             {
                 eTab = " " + eTab + " ";
             }
 
-            if (index == 0) eTab = eTab[3..];
             Utils.DecodeColors((index == selectedTab ? "~B0" : "~87") + eTab);
         }
         Utils.DecodeColors("~--");

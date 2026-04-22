@@ -1,6 +1,6 @@
 namespace Lenovo_R45w30_Settings;
 
-public class Utils
+public abstract class Utils
 {
     /// <summary>
     /// Display a message at the bottom of the screen

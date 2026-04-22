@@ -138,6 +138,7 @@ public abstract class Submenus
                         breakLoop = true;
                         break;
                     case ConsoleKey.Escape:
+                        Utils.ClearScreen(true);
                         return -1;
                 }
 
