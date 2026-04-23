@@ -6,6 +6,8 @@
         <RootNamespace>Lenovo_R45w30_Settings</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <PublishAot>true</PublishAot>
+        <PublishTrimmed>true</PublishTrimmed>
+        <PublishSingleFile>true</PublishSingleFile>
     </PropertyGroup>
-
 </Project>
